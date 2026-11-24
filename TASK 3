@@ -1,0 +1,268 @@
+
+#include <stdio.h>
+#include <limits.h>
+#include <stdlib.h>
+
+#define V 5
+#define INF 999999
+
+int graph[V][V] = {
+    {0, 4, 1, 0, 0},
+    {4, 0, 2, 5, 0},
+    {1, 2, 0, 8, 10},
+    {0, 5, 8, 0, 2},
+    {0, 0, 10, 2, 0}
+};
+
+/* 1. Dijkstra using array */
+void arrayDijkstra(int src)
+{
+    int dist[V], visited[V] = {0};
+
+    for (int i = 0; i < V; i++)
+        dist[i] = INF;
+
+    dist[src] = 0;
+
+    for (int count = 0; count < V; count++) {
+        int u = -1, min = INF;
+
+        for (int i = 0; i < V; i++) {
+            if (!visited[i] && dist[i] < min) {
+                min = dist[i];
+                u = i;
+            }
+        }
+
+        if (u == -1) break;
+
+        visited[u] = 1;
+
+        for (int v = 0; v < V; v++) {
+            if (graph[u][v] > 0 && !visited[v] &&
+                dist[u] + graph[u][v] < dist[v]) {
+                dist[v] = dist[u] + graph[u][v];
+            }
+        }
+    }
+
+    printf("\nArray Dijkstra distances:\n");
+    for (int i = 0; i < V; i++)
+        printf("%d ", dist[i]);
+    printf("\n");
+}
+
+/* 2. Dijkstra using Min-Heap */
+struct Node {
+    int vertex;
+    int distance;
+};
+
+struct Node heap[1000];
+int heapSize = 0;
+
+void swap(struct Node *a, struct Node *b)
+{
+    struct Node temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void push(int vertex, int distance)
+{
+    int i = ++heapSize;
+    heap[i].vertex = vertex;
+    heap[i].distance = distance;
+
+    while (i > 1 && heap[i].distance < heap[i/2].distance) {
+        swap(&heap[i], &heap[i/2]);
+        i /= 2;
+    }
+}
+
+struct Node pop(void)
+{
+    struct Node result = heap[1];
+    heap[1] = heap[heapSize--];
+
+    int i = 1;
+
+    while (2*i <= heapSize) {
+        int child = 2*i;
+
+        if (child + 1 <= heapSize &&
+            heap[child+1].distance < heap[child].distance)
+            child++;
+
+        if (heap[i].distance <= heap[child].distance)
+            break;
+
+        swap(&heap[i], &heap[child]);
+        i = child;
+    }
+
+    return result;
+}
+
+void heapDijkstra(int src)
+{
+    int dist[V];
+
+    for (int i = 0; i < V; i++)
+        dist[i] = INF;
+
+    heapSize = 0;
+    dist[src] = 0;
+    push(src, 0);
+
+    while (heapSize > 0) {
+        struct Node current = pop();
+        int u = current.vertex;
+
+        if (current.distance != dist[u])
+            continue;
+
+        for (int v = 0; v < V; v++) {
+            if (graph[u][v] > 0 &&
+                dist[u] + graph[u][v] < dist[v]) {
+
+                dist[v] = dist[u] + graph[u][v];
+                push(v, dist[v]);
+            }
+        }
+    }
+
+    printf("\nMin-Heap Dijkstra distances:\n");
+    for (int i = 0; i < V; i++)
+        printf("%d ", dist[i]);
+    printf("\n");
+}
+
+/* 3. Floyd-Warshall */
+void floydWarshall(void)
+{
+    int dist[V][V];
+
+    for (int i = 0; i < V; i++) {
+        for (int j = 0; j < V; j++) {
+            if (i == j)
+                dist[i][j] = 0;
+            else if (graph[i][j] > 0)
+                dist[i][j] = graph[i][j];
+            else
+                dist[i][j] = INF;
+        }
+    }
+
+    for (int k = 0; k < V; k++) {
+        for (int i = 0; i < V; i++) {
+            for (int j = 0; j < V; j++) {
+                if (dist[i][k] != INF &&
+                    dist[k][j] != INF &&
+                    dist[i][k] + dist[k][j] < dist[i][j]) {
+
+                    dist[i][j] =
+                        dist[i][k] + dist[k][j];
+                }
+            }
+        }
+    }
+
+    printf("\nFloyd-Warshall distance matrix:\n");
+
+    for (int i = 0; i < V; i++) {
+        for (int j = 0; j < V; j++) {
+            if (dist[i][j] == INF)
+                printf("INF ");
+            else
+                printf("%3d ", dist[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+/* 4. A* grid pathfinding */
+#define N 5
+
+int grid[N][N] = {
+    {0,0,0,0,0},
+    {1,1,0,1,0},
+    {0,0,0,1,0},
+    {0,1,0,0,0},
+    {0,0,0,1,0}
+};
+
+int heuristic(int x, int y)
+{
+    return abs(4-x) + abs(4-y);
+}
+
+int astar(void)
+{
+    int g[N][N], closed[N][N] = {0};
+
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            g[i][j] = INF;
+
+    g[0][0] = 0;
+
+    int dx[] = {-1,1,0,0};
+    int dy[] = {0,0,-1,1};
+
+    while (1) {
+        int x = -1, y = -1, best = INF;
+
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                if (!grid[i][j] && !closed[i][j] &&
+                    g[i][j] != INF) {
+
+                    int f = g[i][j] + heuristic(i,j);
+
+                    if (f < best) {
+                        best = f;
+                        x = i;
+                        y = j;
+                    }
+                }
+            }
+        }
+
+        if (x == -1)
+            return -1;
+
+        if (x == 4 && y == 4)
+            return g[x][y];
+
+        closed[x][y] = 1;
+
+        for (int d = 0; d < 4; d++) {
+            int nx = x + dx[d];
+            int ny = y + dy[d];
+
+            if (nx >= 0 && nx < N &&
+                ny >= 0 && ny < N &&
+                !grid[nx][ny] && !closed[nx][ny] &&
+                g[x][y] + 1 < g[nx][ny]) {
+
+                g[nx][ny] = g[x][y] + 1;
+            }
+        }
+    }
+}
+
+int main(void)
+{
+    printf("B3: SHORTEST PATH ALGORITHM COMPARISON\n");
+
+    arrayDijkstra(0);
+    heapDijkstra(0);
+    floydWarshall();
+
+    int result = astar();
+
+    printf("\nA* Grid Shortest Path: %d steps\n", result);
+
+    return 0;
+}
